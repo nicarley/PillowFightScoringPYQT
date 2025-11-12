@@ -83,7 +83,7 @@ class TimerWidget(QWidget):
         self.reset_btn = QPushButton("Reset")
         self.start_btn.clicked.connect(self.start)
         self.pause_btn.clicked.connect(self.pause)
-        self.reset_btn.clicked.connect(self.reset)
+        self.reset_btn.clicked.connect(self.reset_to_default)
 
         layout = QVBoxLayout(self)
         layout.addWidget(self.display)
@@ -108,13 +108,15 @@ class TimerWidget(QWidget):
     def pause(self):
         self.timer.stop()
 
-    def reset(self, seconds: Optional[int] = None):
+    def set_time(self, seconds: int):
         self.timer.stop()
-        if seconds is not None:
-            self.default_seconds = int(seconds)
-            self.remaining = int(seconds)
-        else:
-            self.remaining = self.default_seconds
+        self.default_seconds = int(seconds)
+        self.remaining = int(seconds)
+        self.display.setText(self.format_time(self.remaining))
+
+    def reset_to_default(self):
+        self.timer.stop()
+        self.remaining = self.default_seconds
         self.display.setText(self.format_time(self.remaining))
 
     def on_tick(self):
@@ -345,8 +347,9 @@ class MainWindow(QMainWindow):
     def set_round(self, idx: int):
         self.current_round = idx
         self.round_label.setText(self.round_name(idx) + ("" if idx < 3 else " 30s"))
-        self.timer.reset(TIEBREAKER_SECONDS if idx == 3 else ROUND_SECONDS)
+        self.timer.set_time(TIEBREAKER_SECONDS if idx == 3 else ROUND_SECONDS)
         self.refresh_scores()
+        self.evaluate_tie_for_tb()
 
     def next_round(self):
         if self.current_round < 2:
@@ -402,7 +405,10 @@ class MainWindow(QMainWindow):
     def evaluate_tie_for_tb(self):
         a3 = sum(self.round_scores_a[:3])
         b3 = sum(self.round_scores_b[:3])
-        self.tb_btn.setEnabled(self.current_round <= 2 and a3 == b3 and (a3 + b3) > 0)
+        is_tied = a3 == b3
+        can_tb = self.current_round <= 2
+        # Enable if tied and (score is not 0 or we are in the final round)
+        self.tb_btn.setEnabled(can_tb and is_tied and ((a3 + b3) > 0 or self.current_round == 2))
 
     # File IO
     def to_payload(self) -> dict:
