@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Pillow Fight Scoring</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: Arial, sans-serif;
+    }
+    body {
+      margin: 0;
+      padding: 10px;
+      background: #f5f5f5;
+    }
+    h1 {
+      text-align: center;
+      margin: 6px 0 12px 0;
+    }
+    .app-container {
+      display: flex;
+      gap: 10px;
+      height: calc(100vh - 60px);
+    }
+    .column {
+      background: white;
+      padding: 10px;
+      border-radius: 4px;
+      overflow: auto;
+      flex: 1;
+      box-shadow: 0 0 4px rgba(0,0,0,0.15);
+    }
+    .header-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 1fr;
+      gap: 6px;
+      margin-bottom: 8px;
+      align-items: center;
+    }
+    .header-row input {
+      width: 100%;
+      padding: 4px 6px;
+      font-size: 13px;
+    }
+    .label-small {
+      font-size: 12px;
+      color: #555;
+    }
+    .fighters-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .fighter-panel {
+      flex: 1;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 6px;
+    }
+    .fighter-title {
+      font-weight: bold;
+      text-align: center;
+      margin-bottom: 4px;
+    }
+    .round-total-label {
+      font-size: 12px;
+      text-align: center;
+      color: #555;
+    }
+    .round-total-value {
+      text-align: center;
+      font-size: 28px;
+      font-weight: 800;
+      margin: 4px 0 10px 0;
+    }
+    .round-total-value.a {
+      color: #e53935;
+    }
+    .round-total-value.b {
+      color: #1e88e5;
+    }
+    .buttons-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+    .score-btn {
+      padding: 8px;
+      min-height: 56px;
+      font-size: 13px;
+      white-space: pre-line;
+      cursor: pointer;
+    }
+    .toolbar {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+    .toolbar button {
+      padding: 4px 8px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .status-bar {
+      margin-top: 6px;
+      font-size: 12px;
+      color: #444;
+      min-height: 16px;
+    }
+    .timer-display {
+      font-size: 40px;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 6px;
+    }
+    .timer-controls {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+      margin-bottom: 6px;
+    }
+    .round-controls {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .round-title {
+      font-size: 16px;
+      font-weight: 600;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 13px;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 4px 6px;
+      text-align: left;
+    }
+    th {
+      background: #eee;
+    }
+    .totals-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 6px 0;
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .totals-row span {
+      margin: 0 4px;
+    }
+    .section-title {
+      margin: 8px 0 4px 0;
+      font-weight: bold;
+    }
+    .event-table-container {
+      max-height: 280px;
+      overflow: auto;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .hidden {
+      display: none;
+    }
+    @media (max-width: 900px) {
+      .app-container {
+        flex-direction: column;
+        height: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<h1>Pillow Fight Scoring</h1>
+
+<div class="toolbar">
+  <button id="newBtn">New</button>
+  <button id="openBtn">Open JSON</button>
+  <button id="saveBtn">Save JSON</button>
+  <button id="undoBtn">Undo</button>
+  <button id="printBtn">Print Score Sheet</button>
+  <span style="font-size:12px;color:#555;">
+    Keyboard: Q W E R T for fighter A, Y U I O P for fighter B, Ctrl Z for undo
+  </span>
+</div>
+
+<input type="file" id="fileInput" accept="application/json" class="hidden">
+
+<div class="app-container">
+  <div class="column">
+    <div class="header-row">
+      <div>
+        <div class="label-small">Judge</div>
+        <input id="judgeInput" placeholder="Judge name">
+      </div>
+      <div>
+        <div class="label-small">Bout ID</div>
+        <input id="boutInput" placeholder="Bout ID">
+      </div>
+      <div>
+        <div class="label-small">Fighter A</div>
+        <input id="fighterAInput" placeholder="Fighter A name">
+      </div>
+      <div>
+        <div class="label-small">Fighter B</div>
+        <input id="fighterBInput" placeholder="Fighter B name">
+      </div>
+    </div>
+
+    <div class="fighters-row">
+      <div class="fighter-panel" id="panelA">
+        <div class="fighter-title" id="panelATitle">Fighter A</div>
+        <div class="round-total-label">Round total</div>
+        <div class="round-total-value a" id="roundTotalA">0</div>
+        <div class="buttons-grid" id="buttonsA"></div>
+      </div>
+      <div class="fighter-panel" id="panelB">
+        <div class="fighter-title" id="panelBTitle">Fighter B</div>
+        <div class="round-total-label">Round total</div>
+        <div class="round-total-value b" id="roundTotalB">0</div>
+        <div class="buttons-grid" id="buttonsB"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="column">
+    <div class="timer-display" id="timerDisplay">01:30</div>
+    <div class="timer-controls">
+      <button id="startTimerBtn">Start</button>
+      <button id="pauseTimerBtn">Pause</button>
+      <button id="resetTimerBtn">Reset</button>
+    </div>
+    <div class="round-controls">
+      <div class="round-title" id="roundLabel">Round 1 of 3</div>
+      <div style="flex:1;"></div>
+      <button id="prevRoundBtn">Prev Round</button>
+      <button id="nextRoundBtn">Next Round</button>
+      <button id="tbBtn" disabled>Start Tiebreaker 30s</button>
+    </div>
+
+    <div class="section-title">Round scores</div>
+    <table id="scoreTable">
+      <thead>
+        <tr>
+          <th>Round</th>
+          <th>Fighter A</th>
+          <th>Fighter B</th>
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr data-round="0"><td>Round 1</td><td>0</td><td>0</td><td>0</td></tr>
+        <tr data-round="1"><td>Round 2</td><td>0</td><td>0</td><td>0</td></tr>
+        <tr data-round="2"><td>Round 3</td><td>0</td><td>0</td><td>0</td></tr>
+        <tr data-round="3"><td>Tiebreaker</td><td>0</td><td>0</td><td>0</td></tr>
+      </tbody>
+    </table>
+
+    <div class="totals-row">
+      <span>Total A: <span id="totalA">0</span></span>
+      <span>Total B: <span id="totalB">0</span></span>
+    </div>
+
+    <div class="section-title">Event log</div>
+    <div class="event-table-container">
+      <table id="eventTable">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Fighter</th>
+            <th>Round</th>
+            <th>Action</th>
+            <th>Pts</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="status-bar" id="statusBar"></div>
+  </div>
+</div>
+
+<script>
+  // Constants
+  const ROUND_SECONDS = 90;
+  const TIEBREAKER_SECONDS = 30;
+  const ROUND_NAMES = ["Round 1", "Round 2", "Round 3", "Tiebreaker"];
+  const ROUND_SHORT = ["R1", "R2", "R3", "TB"];
+  const SCORING_EVENTS = {
+    "Head": 1,
+    "360 Head": 3,
+    "Knockdown": 5,
+    "Leg Unbalanced": 1,
+    "Pillow Break": 3
+  };
+
+  // State
+  let currentRound = 0;           // 0,1,2,3
+  let roundScoresA = [0, 0, 0, 0];
+  let roundScoresB = [0, 0, 0, 0];
+  let events = [];
+  let hasTiebreaker = false;
+
+  let timerRemaining = ROUND_SECONDS;
+  let timerDefault = ROUND_SECONDS;
+  let timerId = null;
+
+  // Elements
+  const judgeInput = document.getElementById("judgeInput");
+  const boutInput = document.getElementById("boutInput");
+  const fighterAInput = document.getElementById("fighterAInput");
+  const fighterBInput = document.getElementById("fighterBInput");
+
+  const panelATitle = document.getElementById("panelATitle");
+  const panelBTitle = document.getElementById("panelBTitle");
+  const roundTotalAEl = document.getElementById("roundTotalA");
+  const roundTotalBEl = document.getElementById("roundTotalB");
+
+  const buttonsAContainer = document.getElementById("buttonsA");
+  const buttonsBContainer = document.getElementById("buttonsB");
+
+  const timerDisplay = document.getElementById("timerDisplay");
+  const startTimerBtn = document.getElementById("startTimerBtn");
+  const pauseTimerBtn = document.getElementById("pauseTimerBtn");
+  const resetTimerBtn = document.getElementById("resetTimerBtn");
+  const roundLabel = document.getElementById("roundLabel");
+  const prevRoundBtn = document.getElementById("prevRoundBtn");
+  const nextRoundBtn = document.getElementById("nextRoundBtn");
+  const tbBtn = document.getElementById("tbBtn");
+
+  const scoreTableBody = document.querySelector("#scoreTable tbody");
+  const eventTableBody = document.querySelector("#eventTable tbody");
+  const totalAEl = document.getElementById("totalA");
+  const totalBEl = document.getElementById("totalB");
+  const statusBar = document.getElementById("statusBar");
+
+  const newBtn = document.getElementById("newBtn");
+  const openBtn = document.getElementById("openBtn");
+  const saveBtn = document.getElementById("saveBtn");
+  const undoBtn = document.getElementById("undoBtn");
+  const printBtn = document.getElementById("printBtn");
+  const fileInput = document.getElementById("fileInput");
+
+  // Utility
+  function formatTime(sec) {
+    sec = Math.max(0, Math.floor(sec));
+    const m = String(Math.floor(sec / 60)).padStart(2, "0");
+    const s = String(sec % 60).padStart(2, "0");
+    return m + ":" + s;
+  }
+
+  function currentTimeString() {
+    const now = new Date();
+    return now.toTimeString().slice(0, 8);
+  }
+
+  function showStatus(msg, ms = 4000) {
+    statusBar.textContent = msg || "";
+    if (ms > 0 && msg) {
+      setTimeout(() => {
+        if (statusBar.textContent === msg) {
+          statusBar.textContent = "";
+        }
+      }, ms);
+    }
+  }
+
+  // Timer
+  function updateTimerDisplay() {
+    timerDisplay.textContent = formatTime(timerRemaining);
+  }
+
+  function startTimer() {
+    if (timerRemaining <= 0) {
+      timerRemaining = timerDefault;
+      updateTimerDisplay();
+    }
+    if (timerId === null && timerRemaining > 0) {
+      timerId = setInterval(() => {
+        timerRemaining -= 1;
+        updateTimerDisplay();
+        if (timerRemaining <= 0) {
+          stopTimer();
+        }
+      }, 1000);
+    }
+  }
+
+  function stopTimer() {
+    if (timerId !== null) {
+      clearInterval(timerId);
+      timerId = null;
+    }
+  }
+
+  function resetTimer(seconds) {
+    stopTimer();
+    if (typeof seconds === "number") {
+      timerDefault = seconds;
+      timerRemaining = seconds;
+    } else {
+      timerRemaining = timerDefault;
+    }
+    updateTimerDisplay();
+  }
+
+  // Rounds
+  function setRound(idx) {
+    currentRound = idx;
+    const isTB = idx === 3;
+    timerDefault = isTB ? TIEBREAKER_SECONDS : ROUND_SECONDS;
+    timerRemaining = timerDefault;
+    updateTimerDisplay();
+    const suffix = isTB ? " 30s" : "";
+    roundLabel.textContent = ROUND_NAMES[idx] + suffix;
+    refreshScores();
+    updateNames();
+  }
+
+  function nextRound() {
+    if (currentRound < 2) {
+      setRound(currentRound + 1);
+    } else if (currentRound === 2) {
+      alert("Three rounds complete. Start tiebreaker if totals are tied.");
+    }
+  }
+
+  function prevRound() {
+    if (currentRound > 0) {
+      setRound(currentRound - 1);
+    }
+  }
+
+  function startTiebreaker() {
+    hasTiebreaker = true;
+    setRound(3);
+  }
+
+  // Scoring
+  function addScore(fighter, eventName) {
+    const pts = SCORING_EVENTS[eventName] || 0;
+    const ev = {
+      ts: Date.now() / 1000,
+      fighter,
+      roundIndex: currentRound,
+      label: eventName,
+      points: pts
+    };
+    events.push(ev);
+    appendEventRow(ev);
+
+    if (fighter === "A") {
+      roundScoresA[currentRound] += pts;
+    } else {
+      roundScoresB[currentRound] += pts;
+    }
+    refreshScores();
+    evaluateTieForTiebreaker();
+  }
+
+  function undoLast() {
+    if (!events.length) return;
+    const ev = events.pop();
+    if (eventTableBody.rows.length > 0) {
+      eventTableBody.deleteRow(eventTableBody.rows.length - 1);
+    }
+    if (ev.fighter === "A") {
+      roundScoresA[ev.roundIndex] -= ev.points;
+      if (roundScoresA[ev.roundIndex] < 0) roundScoresA[ev.roundIndex] = 0;
+    } else {
+      roundScoresB[ev.roundIndex] -= ev.points;
+      if (roundScoresB[ev.roundIndex] < 0) roundScoresB[ev.roundIndex] = 0;
+    }
+    refreshScores();
+    evaluateTieForTiebreaker();
+  }
+
+  function refreshScores() {
+    for (let i = 0; i < 4; i++) {
+      const row = scoreTableBody.querySelector(`tr[data-round="${i}"]`);
+      if (!row) continue;
+      const a = roundScoresA[i];
+      const b = roundScoresB[i];
+      row.children[1].textContent = a;
+      row.children[2].textContent = b;
+      row.children[3].textContent = a + b;
+    }
+    const totalA = roundScoresA.reduce((x, y) => x + y, 0);
+    const totalB = roundScoresB.reduce((x, y) => x + y, 0);
+    totalAEl.textContent = totalA;
+    totalBEl.textContent = totalB;
+    roundTotalAEl.textContent = roundScoresA[currentRound];
+    roundTotalBEl.textContent = roundScoresB[currentRound];
+  }
+
+  function evaluateTieForTiebreaker() {
+    const a3 = roundScoresA[0] + roundScoresA[1] + roundScoresA[2];
+    const b3 = roundScoresB[0] + roundScoresB[1] + roundScoresB[2];
+    const enable = currentRound <= 2 && a3 === b3 && (a3 + b3) > 0;
+    tbBtn.disabled = !enable;
+  }
+
+  // Event table
+  function appendEventRow(ev) {
+    const tr = document.createElement("tr");
+    const tStr = new Date(ev.ts * 1000).toTimeString().slice(0, 8);
+    const cols = [
+      tStr,
+      ev.fighter,
+      ROUND_SHORT[ev.roundIndex],
+      ev.label,
+      String(ev.points)
+    ];
+    cols.forEach(text => {
+      const td = document.createElement("td");
+      td.textContent = text;
+      tr.appendChild(td);
+    });
+    eventTableBody.appendChild(tr);
+    tr.scrollIntoView({ block: "end" });
+  }
+
+  function reloadEventTable() {
+    eventTableBody.innerHTML = "";
+    events.forEach(appendEventRow);
+  }
+
+  // Names and window title
+  function getFighterNames() {
+    const a = fighterAInput.value.trim() || "Fighter A";
+    const b = fighterBInput.value.trim() || "Fighter B";
+    return { a, b };
+  }
+
+  function updateNames() {
+    const { a, b } = getFighterNames();
+    panelATitle.textContent = a;
+    panelBTitle.textContent = b;
+    document.title = "Pillow Fight Scoring " + a + " vs " + b + " " + ROUND_NAMES[currentRound];
+  }
+
+  // Buttons creation
+  function createButtons() {
+    const mapping = [
+      ["Head", "Q", "Y"],
+      ["360 Head", "W", "U"],
+      ["Knockdown", "E", "I"],
+      ["Leg Unbalanced", "R", "O"],
+      ["Pillow Break", "T", "P"]
+    ];
+    mapping.forEach(([name, keyA, keyB]) => {
+      const pts = SCORING_EVENTS[name];
+
+      const btnA = document.createElement("button");
+      btnA.className = "score-btn";
+      btnA.textContent = name + "\n+" + pts + " (" + keyA + ")";
+      btnA.dataset.eventName = name;
+      btnA.dataset.fighter = "A";
+      buttonsAContainer.appendChild(btnA);
+
+      const btnB = document.createElement("button");
+      btnB.className = "score-btn";
+      btnB.textContent = name + "\n+" + pts + " (" + keyB + ")";
+      btnB.dataset.eventName = name;
+      btnB.dataset.fighter = "B";
+      buttonsBContainer.appendChild(btnB);
+    });
+  }
+
+  // Pay load conversion
+  function toPayload() {
+    const { a, b } = getFighterNames();
+    return {
+      judge: judgeInput.value.trim(),
+      bout: boutInput.value.trim(),
+      fighter_a: a,
+      fighter_b: b,
+      scores_a: roundScoresA.slice(),
+      scores_b: roundScoresB.slice(),
+      has_tb: hasTiebreaker,
+      events: events.map(e => ({
+        ts: e.ts,
+        fighter: e.fighter,
+        round_index: e.roundIndex,
+        label: e.label,
+        points: e.points
+      })),
+      saved_at: new Date().toISOString().slice(0, 19).replace("T", " ")
+    };
+  }
+
+  function fromPayload(data) {
+    stopTimer();
+
+    judgeInput.value = data.judge || "";
+    boutInput.value = data.bout || "";
+    fighterAInput.value = data.fighter_a || "Fighter A";
+    fighterBInput.value = data.fighter_b || "Fighter B";
+
+    const sa = Array.isArray(data.scores_a) ? data.scores_a : [0, 0, 0, 0];
+    const sb = Array.isArray(data.scores_b) ? data.scores_b : [0, 0, 0, 0];
+    roundScoresA = (sa.concat([0, 0, 0, 0])).slice(0, 4);
+    roundScoresB = (sb.concat([0, 0, 0, 0])).slice(0, 4);
+
+    hasTiebreaker = !!data.has_tb;
+    events = [];
+    if (Array.isArray(data.events)) {
+      data.events.forEach(e => {
+        try {
+          const ev = {
+            ts: Number(e.ts),
+            fighter: String(e.fighter),
+            roundIndex: Number(e.round_index),
+            label: String(e.label),
+            points: Number(e.points)
+          };
+          if (!isNaN(ev.ts) && !isNaN(ev.roundIndex) && !isNaN(ev.points)) {
+            events.push(ev);
+          }
+        } catch (ex) {}
+      });
+    }
+    reloadEventTable();
+    setRound(hasTiebreaker ? 3 : 0);
+    refreshScores();
+    updateNames();
+    evaluateTieForTiebreaker();
+  }
+
+  // Save and open
+  function saveMatch() {
+    const payload = toPayload();
+    const { a, b } = getFighterNames();
+    const ts = new Date();
+    const stamp = ts.toISOString().replace(/[:.]/g, "").slice(0, 15);
+    const safeA = a.replace(/\s+/g, "_");
+    const safeB = b.replace(/\s+/g, "_");
+    const defaultName = stamp + "_" + safeA + "_vs_" + safeB + ".json";
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const aEl = document.createElement("a");
+    aEl.href = url;
+    aEl.download = defaultName;
+    document.body.appendChild(aEl);
+    aEl.click();
+    document.body.removeChild(aEl);
+    URL.revokeObjectURL(url);
+    showStatus("Saved JSON file " + defaultName);
+  }
+
+  function openMatch() {
+    fileInput.value = "";
+    fileInput.click();
+  }
+
+  fileInput.addEventListener("change", () => {
+    const file = fileInput.files && fileInput.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result);
+        fromPayload(data);
+        showStatus("Opened " + file.name);
+      } catch (ex) {
+        alert("Could not read JSON file");
+      }
+    };
+    reader.readAsText(file, "utf-8");
+  });
+
+  // New match
+  function newMatch() {
+    if (timerId !== null) {
+      stopTimer();
+    }
+    if (!confirm("Start a new match. Unsaved data will be lost.")) return;
+    currentRound = 0;
+    roundScoresA = [0, 0, 0, 0];
+    roundScoresB = [0, 0, 0, 0];
+    events = [];
+    reloadEventTable();
+    hasTiebreaker = false;
+    judgeInput.value = "";
+    boutInput.value = "";
+    fighterAInput.value = "";
+    fighterBInput.value = "";
+    setRound(0);
+    refreshScores();
+    updateNames();
+    evaluateTieForTiebreaker();
+    showStatus("New match started");
+  }
+
+  // Score sheet output and print
+  function buildScoreHtml() {
+    const { a, b } = getFighterNames();
+    const judge = judgeInput.value.trim();
+    const bout = boutInput.value.trim();
+    const r = roundScoresA;
+    const s = roundScoresB;
+    const totalA = r.reduce((x, y) => x + y, 0);
+    const totalB = s.reduce((x, y) => x + y, 0);
+    let winner = "Draw";
+    if (totalA > totalB) winner = a;
+    else if (totalB > totalA) winner = b;
+
+    let rows = "";
+    for (let i = 0; i < 4; i++) {
+      rows += "<tr>" +
+        "<td>" + ROUND_NAMES[i] + "</td>" +
+        "<td style='text-align:center'>" + r[i] + "</td>" +
+        "<td style='text-align:center'>" + s[i] + "</td>" +
+        "</tr>";
+    }
+
+    let actions = "";
+    events.forEach(ev => {
+      const tStr = new Date(ev.ts * 1000).toTimeString().slice(0, 8);
+      actions += "<tr>" +
+        "<td>" + tStr + "</td>" +
+        "<td>" + ev.fighter + "</td>" +
+        "<td>" + ROUND_SHORT[ev.roundIndex] + "</td>" +
+        "<td>" + ev.label + "</td>" +
+        "<td style='text-align:center'>" + ev.points + "</td>" +
+        "</tr>";
+    });
+
+    return `
+    <html>
+    <head>
+      <meta charset='utf-8'>
+      <title>Pillow Fight Score Sheet</title>
+      <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1 { text-align:center; margin-bottom:4px; }
+        h3 { text-align:center; margin-top:0; }
+        table { width:100%; border-collapse:collapse; margin-top:10px; }
+        th, td { border:1px solid #444; padding:6px; font-size:12pt; }
+        th { background:#eee; }
+        .totals { font-size:13pt; font-weight:bold; }
+        .meta { margin-bottom:8px; }
+      </style>
+    </head>
+    <body>
+      <h1>Official Pillow Fight Score Sheet</h1>
+      <h3>Bout ${bout || ""}</h3>
+      <p class='meta'><strong>Judge:</strong> ${judge || ""}</p>
+      <p class='meta'><strong>Fighters:</strong> ${a} vs ${b}</p>
+      <table>
+        <tr><th>Round</th><th>${a}</th><th>${b}</th></tr>
+        ${rows}
+        <tr class='totals'><td>Total</td><td style='text-align:center'>${totalA}</td><td style='text-align:center'>${totalB}</td></tr>
+        <tr><td colspan='3'><strong>Winner:</strong> ${winner}</td></tr>
+      </table>
+      <h3>Event Log</h3>
+      <table>
+        <tr><th>Time</th><th>F</th><th>Rd</th><th>Action</th><th>Pts</th></tr>
+        ${actions}
+      </table>
+      <p style='margin-top:40px'>Judge signature: ________________________________ Date: ____________</p>
+    </body>
+    </html>
+    `;
+  }
+
+  function printScoreSheet() {
+    const html = buildScoreHtml();
+    const w = window.open("", "_blank");
+    if (!w) {
+      alert("Popup blocked. Allow popups to print the score sheet.");
+      return;
+    }
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    w.print();
+  }
+
+  // Keyboard shortcuts
+  function handleKey(e) {
+    const tag = e.target.tagName.toLowerCase();
+    if (tag === "input" || tag === "textarea") {
+      return;
+    }
+    const key = e.key.toLowerCase();
+
+    if (e.ctrlKey && key === "z") {
+      e.preventDefault();
+      undoLast();
+      return;
+    }
+
+    switch (key) {
+      case "q": addScore("A", "Head"); break;
+      case "w": addScore("A", "360 Head"); break;
+      case "e": addScore("A", "Knockdown"); break;
+      case "r": addScore("A", "Leg Unbalanced"); break;
+      case "t": addScore("A", "Pillow Break"); break;
+      case "y": addScore("B", "Head"); break;
+      case "u": addScore("B", "360 Head"); break;
+      case "i": addScore("B", "Knockdown"); break;
+      case "o": addScore("B", "Leg Unbalanced"); break;
+      case "p": addScore("B", "Pillow Break"); break;
+    }
+  }
+
+  // Wiring
+  function init() {
+    createButtons();
+    updateNames();
+    timerRemaining = ROUND_SECONDS;
+    timerDefault = ROUND_SECONDS;
+    updateTimerDisplay();
+    refreshScores();
+
+    startTimerBtn.addEventListener("click", startTimer);
+    pauseTimerBtn.addEventListener("click", stopTimer);
+    resetTimerBtn.addEventListener("click", () => resetTimer());
+
+    prevRoundBtn.addEventListener("click", prevRound);
+    nextRoundBtn.addEventListener("click", nextRound);
+    tbBtn.addEventListener("click", startTiebreaker);
+
+    buttonsAContainer.addEventListener("click", e => {
+      const btn = e.target.closest("button");
+      if (!btn) return;
+      addScore("A", btn.dataset.eventName);
+    });
+    buttonsBContainer.addEventListener("click", e => {
+      const btn = e.target.closest("button");
+      if (!btn) return;
+      addScore("B", btn.dataset.eventName);
+    });
+
+    fighterAInput.addEventListener("input", updateNames);
+    fighterBInput.addEventListener("input", updateNames);
+
+    newBtn.addEventListener("click", newMatch);
+    openBtn.addEventListener("click", openMatch);
+    saveBtn.addEventListener("click", saveMatch);
+    undoBtn.addEventListener("click", undoLast);
+    printBtn.addEventListener("click", printScoreSheet);
+
+    document.addEventListener("keydown", handleKey);
+  }
+
+  init();
+</script>
+</body>
+</html>
